@@ -13,6 +13,7 @@ class InactivityDetector extends StatefulWidget {
     this.timeOut = 180000, // 3 minutes
     this.enabled = true,
   });
+
   final bool enabled;
   final int timeOut;
   final Widget child;
@@ -27,9 +28,12 @@ class _InactivityDetectorState extends State<InactivityDetector>
   late int sessionMillis; // 3 minutes
   final backgroundedTimeKey = 'backgroundedTimeKey';
   final lastKnownStateKey = 'lastKnownStateKey';
+  late SharedPreferences prefs;
 
   @override
-  void initState() {
+  void initState() async {
+    prefs = await SharedPreferences.getInstance();
+
     sessionMillis = widget.timeOut;
     if (widget.enabled) {
       _initializeTimer();
@@ -67,53 +71,55 @@ class _InactivityDetectorState extends State<InactivityDetector>
   }
 
   Future<void> _resumed() async {
-    final sp = sl<SharedPreferences>();
-    final currentTime = DateTime.now().toLocal().millisecondsSinceEpoch;
-    final bgTime = sp.getInt(backgroundedTimeKey) ?? currentTime;
+    final currentTime = DateTime
+        .now()
+        .toLocal()
+        .millisecondsSinceEpoch;
+    final bgTime = prefs.getInt(backgroundedTimeKey) ?? currentTime;
     final allowedBackgroundTime = bgTime + sessionMillis;
 
     final reachTimeOut = currentTime > allowedBackgroundTime;
 
     if (reachTimeOut) {
-      await _logOutUser();
-
+      //TOdo Logout
       return;
     }
 
     _initializeTimer();
-    await sp.remove(backgroundedTimeKey); // clean
-    await sp.setInt(
+    await prefs.remove(backgroundedTimeKey); // clean
+    await prefs.setInt(
       lastKnownStateKey,
       AppLifecycleState.resumed.index,
     ); // previous state
   }
 
   Future<void> _inactive() async {
-    final sp = sl<SharedPreferences>();
-    final currentTime = DateTime.now().toLocal().millisecondsSinceEpoch;
-    final prevState = sp.getInt(lastKnownStateKey);
+    final currentTime = DateTime
+        .now()
+        .toLocal()
+        .millisecondsSinceEpoch;
+    final prevState = prefs.getInt(lastKnownStateKey);
     final prevStateIsNotPaused = prevState != null &&
         AppLifecycleState.values[prevState] != AppLifecycleState.paused;
 
     if (prevStateIsNotPaused) {
       // save App backgrounded time to Shared preferences
 
-      await sp.setInt(
+      await prefs.setInt(
         backgroundedTimeKey,
         currentTime,
       );
     } else {
-      await sp.remove(backgroundedTimeKey);
+      await prefs.remove(backgroundedTimeKey);
     }
 
     _initializeTimer(isForeground: false);
     // update previous state as inactive
-    await sp.setInt(lastKnownStateKey, AppLifecycleState.inactive.index);
+    await prefs.setInt(lastKnownStateKey, AppLifecycleState.inactive.index);
   }
 
   Future<void> _paused() async {
-    await sl<SharedPreferences>()
-        .setInt(lastKnownStateKey, AppLifecycleState.paused.index);
+    await prefs.setInt(lastKnownStateKey, AppLifecycleState.paused.index);
   }
 
   Future<void> _detached() async {
@@ -128,6 +134,7 @@ class _InactivityDetectorState extends State<InactivityDetector>
         _timer.cancel();
       }
     } catch (err) {
+      //TODO
     } finally {
       if (mounted) {
         _timer = isForeground
@@ -137,14 +144,16 @@ class _InactivityDetectorState extends State<InactivityDetector>
     }
   }
 
-  void _showAlert() => {
-    //TODO logout
+  void _showAlert() =>
+      {
+        //TODO logout
 
-  }
+      };
 
-  void _logOutUser()=>{
-    //TODO logout
-  }
+  void _logOutUser() =>
+      {
+        //TODO logout
+      };
 
   void onAlertCloseFunction() {
     Navigator.of(context).pop();
